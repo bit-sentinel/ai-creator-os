@@ -1,0 +1,500 @@
+{
+  "meta": {
+    "instanceId": "ai-creator-os"
+  },
+  "workflows": [
+
+    {
+      "id": "wf_trend_discovery",
+      "name": "1. Trend Discovery (Every 6h)",
+      "active": true,
+      "nodes": [
+        {
+          "id": "node_schedule_trend",
+          "name": "Schedule Trigger",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "typeVersion": 1.1,
+          "position": [100, 200],
+          "parameters": {
+            "rule": {
+              "interval": [{"field": "hours", "hoursInterval": 6}]
+            }
+          }
+        },
+        {
+          "id": "node_http_trend",
+          "name": "Trigger Trend Discovery",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [350, 200],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/trend-discovery",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {"name": "account", "value": ""}
+              ]
+            },
+            "options": {"timeout": 30000}
+          }
+        },
+        {
+          "id": "node_trend_success",
+          "name": "Log Success",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.2,
+          "position": [600, 200],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {"name": "pipeline", "value": "trend_discovery", "type": "string"},
+                {"name": "status", "value": "={{ $json.status }}", "type": "string"},
+                {"name": "timestamp", "value": "={{ new Date().toISOString() }}", "type": "string"}
+              ]
+            }
+          }
+        },
+        {
+          "id": "node_trend_error",
+          "name": "Error Notification",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.2,
+          "position": [600, 350],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {"name": "error", "value": "Trend discovery failed", "type": "string"},
+                {"name": "timestamp", "value": "={{ new Date().toISOString() }}", "type": "string"}
+              ]
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Schedule Trigger": {"main": [[{"node": "Trigger Trend Discovery", "type": "main", "index": 0}]]},
+        "Trigger Trend Discovery": {"main": [[{"node": "Log Success", "type": "main", "index": 0}]]}
+      },
+      "settings": {"errorWorkflow": "wf_error_handler", "saveManualExecutions": true}
+    },
+
+    {
+      "id": "wf_content_creation",
+      "name": "2. Content Creation (Daily 02:00 UTC)",
+      "active": true,
+      "nodes": [
+        {
+          "id": "node_schedule_content",
+          "name": "Daily Schedule",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "typeVersion": 1.1,
+          "position": [100, 200],
+          "parameters": {
+            "rule": {
+              "interval": [
+                {"field": "cronExpression", "expression": "0 2 * * *"}
+              ]
+            }
+          }
+        },
+        {
+          "id": "node_get_accounts",
+          "name": "Get Active Accounts",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [350, 200],
+          "parameters": {
+            "method": "GET",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/accounts",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"}
+              ]
+            }
+          }
+        },
+        {
+          "id": "node_split_accounts",
+          "name": "Split Accounts",
+          "type": "n8n-nodes-base.splitInBatches",
+          "typeVersion": 3,
+          "position": [600, 200],
+          "parameters": {"batchSize": 1, "options": {}}
+        },
+        {
+          "id": "node_generate_content",
+          "name": "Generate Content Per Account",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [850, 200],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/content-creation",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {"name": "account", "value": "={{ $json.username }}"}
+              ]
+            },
+            "options": {"timeout": 600000}
+          }
+        },
+        {
+          "id": "node_wait_content",
+          "name": "Wait 2 minutes",
+          "type": "n8n-nodes-base.wait",
+          "typeVersion": 1,
+          "position": [1100, 200],
+          "parameters": {"amount": 2, "unit": "minutes"}
+        }
+      ],
+      "connections": {
+        "Daily Schedule": {"main": [[{"node": "Get Active Accounts", "type": "main", "index": 0}]]},
+        "Get Active Accounts": {"main": [[{"node": "Split Accounts", "type": "main", "index": 0}]]},
+        "Split Accounts": {"main": [[{"node": "Generate Content Per Account", "type": "main", "index": 0}]]},
+        "Generate Content Per Account": {"main": [[{"node": "Wait 2 minutes", "type": "main", "index": 0}]]},
+        "Wait 2 minutes": {"main": [[{"node": "Split Accounts", "type": "main", "index": 0}]]}
+      },
+      "settings": {"errorWorkflow": "wf_error_handler", "saveManualExecutions": true}
+    },
+
+    {
+      "id": "wf_publishing",
+      "name": "3. Publishing (Every 30min)",
+      "active": true,
+      "nodes": [
+        {
+          "id": "node_schedule_publish",
+          "name": "Every 30 Minutes",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "typeVersion": 1.1,
+          "position": [100, 200],
+          "parameters": {
+            "rule": {
+              "interval": [{"field": "minutes", "minutesInterval": 30}]
+            }
+          }
+        },
+        {
+          "id": "node_check_hour",
+          "name": "Active Hours Only (6am-11pm)",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 2,
+          "position": [350, 200],
+          "parameters": {
+            "conditions": {
+              "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+              "conditions": [
+                {
+                  "id": "hour_check",
+                  "leftValue": "={{ new Date().getUTCHours() }}",
+                  "rightValue": 5,
+                  "operator": {"type": "number", "operation": "gt"}
+                },
+                {
+                  "id": "hour_check2",
+                  "leftValue": "={{ new Date().getUTCHours() }}",
+                  "rightValue": 23,
+                  "operator": {"type": "number", "operation": "lt"}
+                }
+              ],
+              "combinator": "and"
+            }
+          }
+        },
+        {
+          "id": "node_trigger_publish",
+          "name": "Trigger Publishing",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [600, 150],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/publishing",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [{"name": "account", "value": ""}]
+            },
+            "options": {"timeout": 120000}
+          }
+        },
+        {
+          "id": "node_skip_publish",
+          "name": "Skip (Outside Hours)",
+          "type": "n8n-nodes-base.noOp",
+          "typeVersion": 1,
+          "position": [600, 350],
+          "parameters": {}
+        }
+      ],
+      "connections": {
+        "Every 30 Minutes": {"main": [[{"node": "Active Hours Only (6am-11pm)", "type": "main", "index": 0}]]},
+        "Active Hours Only (6am-11pm)": {
+          "main": [
+            [{"node": "Trigger Publishing", "type": "main", "index": 0}],
+            [{"node": "Skip (Outside Hours)", "type": "main", "index": 0}]
+          ]
+        }
+      },
+      "settings": {"saveManualExecutions": true}
+    },
+
+    {
+      "id": "wf_analytics",
+      "name": "4. Engagement Analytics (Every 12h)",
+      "active": true,
+      "nodes": [
+        {
+          "id": "node_schedule_analytics",
+          "name": "Every 12 Hours",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "typeVersion": 1.1,
+          "position": [100, 200],
+          "parameters": {
+            "rule": {
+              "interval": [{"field": "hours", "hoursInterval": 12}]
+            }
+          }
+        },
+        {
+          "id": "node_trigger_analytics",
+          "name": "Collect Metrics",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [350, 200],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/analytics",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [{"name": "account", "value": ""}]
+            },
+            "options": {"timeout": 60000}
+          }
+        },
+        {
+          "id": "node_analytics_log",
+          "name": "Log Analytics Run",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.2,
+          "position": [600, 200],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {"name": "pipeline", "value": "analytics", "type": "string"},
+                {"name": "status", "value": "={{ $json.status }}", "type": "string"},
+                {"name": "timestamp", "value": "={{ new Date().toISOString() }}", "type": "string"}
+              ]
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Every 12 Hours": {"main": [[{"node": "Collect Metrics", "type": "main", "index": 0}]]},
+        "Collect Metrics": {"main": [[{"node": "Log Analytics Run", "type": "main", "index": 0}]]}
+      },
+      "settings": {"errorWorkflow": "wf_error_handler", "saveManualExecutions": true}
+    },
+
+    {
+      "id": "wf_learning",
+      "name": "5. Learning & Optimization (Daily 03:00 UTC)",
+      "active": true,
+      "nodes": [
+        {
+          "id": "node_schedule_learning",
+          "name": "Daily 3am UTC",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "typeVersion": 1.1,
+          "position": [100, 200],
+          "parameters": {
+            "rule": {
+              "interval": [
+                {"field": "cronExpression", "expression": "0 3 * * *"}
+              ]
+            }
+          }
+        },
+        {
+          "id": "node_run_analytics_first",
+          "name": "Ensure Fresh Metrics",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [350, 200],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/analytics",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "bodyParameters": {"parameters": [{"name": "account", "value": ""}]},
+            "options": {"timeout": 60000}
+          }
+        },
+        {
+          "id": "node_wait_analytics",
+          "name": "Wait for Analytics",
+          "type": "n8n-nodes-base.wait",
+          "typeVersion": 1,
+          "position": [600, 200],
+          "parameters": {"amount": 3, "unit": "minutes"}
+        },
+        {
+          "id": "node_trigger_learning",
+          "name": "Run Learning Agent",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [850, 200],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/learning",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "x-api-key", "value": "={{ $env.CREATOR_OS_API_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "bodyParameters": {"parameters": [{"name": "account", "value": ""}]},
+            "options": {"timeout": 300000}
+          }
+        },
+        {
+          "id": "node_learning_done",
+          "name": "Strategy Updated",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.2,
+          "position": [1100, 200],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {"name": "message", "value": "Strategy memory updated for all accounts", "type": "string"},
+                {"name": "timestamp", "value": "={{ new Date().toISOString() }}", "type": "string"}
+              ]
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Daily 3am UTC": {"main": [[{"node": "Ensure Fresh Metrics", "type": "main", "index": 0}]]},
+        "Ensure Fresh Metrics": {"main": [[{"node": "Wait for Analytics", "type": "main", "index": 0}]]},
+        "Wait for Analytics": {"main": [[{"node": "Run Learning Agent", "type": "main", "index": 0}]]},
+        "Run Learning Agent": {"main": [[{"node": "Strategy Updated", "type": "main", "index": 0}]]}
+      },
+      "settings": {"errorWorkflow": "wf_error_handler", "saveManualExecutions": true}
+    },
+
+    {
+      "id": "wf_error_handler",
+      "name": "Error Handler",
+      "active": true,
+      "nodes": [
+        {
+          "id": "node_error_trigger",
+          "name": "Error Trigger",
+          "type": "n8n-nodes-base.errorTrigger",
+          "typeVersion": 1,
+          "position": [100, 200],
+          "parameters": {}
+        },
+        {
+          "id": "node_format_error",
+          "name": "Format Error",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.2,
+          "position": [350, 200],
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {"name": "workflow_name", "value": "={{ $json.workflow.name }}", "type": "string"},
+                {"name": "error_message", "value": "={{ $json.execution.error.message }}", "type": "string"},
+                {"name": "node_name", "value": "={{ $json.execution.lastNodeExecuted }}", "type": "string"},
+                {"name": "timestamp", "value": "={{ new Date().toISOString() }}", "type": "string"},
+                {"name": "execution_id", "value": "={{ $json.execution.id }}", "type": "string"}
+              ]
+            }
+          }
+        },
+        {
+          "id": "node_log_error",
+          "name": "Log to Supabase",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [600, 200],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/scheduled_jobs",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {"name": "apikey", "value": "={{ $env.SUPABASE_KEY }}"},
+                {"name": "Authorization", "value": "Bearer {{ $env.SUPABASE_KEY }}"},
+                {"name": "Content-Type", "value": "application/json"}
+              ]
+            },
+            "sendBody": true,
+            "specifyBody": "json",
+            "jsonBody": "={{ JSON.stringify({ job_type: 'error_log', scheduled_at: $json.timestamp, executed_at: $json.timestamp, status: 'failed', error_message: $json.workflow_name + ': ' + $json.error_message }) }}",
+            "options": {}
+          }
+        }
+      ],
+      "connections": {
+        "Error Trigger": {"main": [[{"node": "Format Error", "type": "main", "index": 0}]]},
+        "Format Error": {"main": [[{"node": "Log to Supabase", "type": "main", "index": 0}]]}
+      }
+    }
+
+  ],
+
+  "credentials_required": {
+    "CREATOR_OS_API_URL": "http://your-server:8000",
+    "CREATOR_OS_API_KEY": "your-api-secret-key-from-settings",
+    "SUPABASE_URL": "https://your-project.supabase.co",
+    "SUPABASE_KEY": "your-supabase-anon-key"
+  },
+
+  "import_instructions": [
+    "1. Open your n8n instance",
+    "2. Go to Workflows → Import from file",
+    "3. Import this JSON file",
+    "4. Set the environment variables listed in credentials_required",
+    "5. Activate each workflow",
+    "6. Ensure your AI Creator OS API server is running (python main.py --serve)"
+  ]
+}

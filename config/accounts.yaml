@@ -1,0 +1,60 @@
+# AI Creator OS — Account Configuration
+# Add one entry per Instagram page you want to manage.
+# Sensitive credentials (access_token, instagram_user_id) are stored
+# in the database after initial setup. Put placeholders here for onboarding.
+
+accounts:
+  - username: "ai_growth_hacks"
+    platform: instagram
+    niche: "AI & Productivity"
+    posting_frequency: 5          # posts per day
+    preferred_post_times:         # UTC 24-h format
+      - "07:00"
+      - "10:00"
+      - "13:00"
+      - "17:00"
+      - "20:00"
+    hashtag_sets:
+      - ["#AITools", "#ArtificialIntelligence", "#ProductivityHacks", "#TechTips", "#FutureOfWork"]
+      - ["#MachineLearning", "#ChatGPT", "#AIMarketing", "#DigitalTransformation", "#AutomationTools"]
+    tone: "educational"           # educational | inspirational | controversial | storytelling
+    status: active
+
+  - username: "startup_playbook"
+    platform: instagram
+    niche: "Startups & Entrepreneurship"
+    posting_frequency: 3
+    preferred_post_times:
+      - "08:00"
+      - "12:00"
+      - "19:00"
+    hashtag_sets:
+      - ["#StartupLife", "#Entrepreneur", "#BusinessGrowth", "#Founder", "#StartupAdvice"]
+      - ["#VentureCapital", "#Bootstrapped", "#ScaleUp", "#StartupMindset", "#BuildInPublic"]
+    tone: "inspirational"
+    status: active
+
+  - username: "mindset_coded"
+    platform: instagram
+    niche: "Personal Development & Mindset"
+    posting_frequency: 4
+    preferred_post_times:
+      - "06:00"
+      - "09:00"
+      - "15:00"
+      - "21:00"
+    hashtag_sets:
+      - ["#MindsetShift", "#PersonalDevelopment", "#GrowthMindset", "#SelfImprovement", "#Discipline"]
+      - ["#Motivation", "#SuccessMindset", "#MentalStrength", "#LifeLessons", "#WinnerMindset"]
+    tone: "inspirational"
+    status: active
+
+# Global defaults applied to all accounts unless overridden
+defaults:
+  slide_count: 5
+  max_words_per_slide: 25
+  caption_max_length: 2200
+  hashtag_count: 30
+  image_style: "modern minimalist with bold typography"
+  duplicate_check: true
+  auto_publish: true

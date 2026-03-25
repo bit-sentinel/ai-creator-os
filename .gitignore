@@ -1,0 +1,58 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+*.pyo
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Generated images (large binary files)
+image_cache/
+*.png
+*.jpg
+*.jpeg
+*.gif
+!assets/**
+
+# Logs
+*.log
+creator_os.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# n8n local data
+n8n_data/
+
+# Distribution
+*.tar.gz
+*.zip

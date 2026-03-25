@@ -1,0 +1,39 @@
+# AI Creator OS — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ── Core ──────────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+pyyaml>=6.0.1
+
+# ── LLM / AI ──────────────────────────────────────────────────────────────────
+openai>=1.12.0
+langchain>=0.1.9
+langchain-openai>=0.0.8
+
+# ── Database ──────────────────────────────────────────────────────────────────
+supabase>=2.3.4
+psycopg2-binary>=2.9.9          # For direct PostgreSQL if needed
+
+# ── Web / HTTP ────────────────────────────────────────────────────────────────
+requests>=2.31.0
+httpx>=0.26.0                   # Used by supabase client
+
+# ── API Server ────────────────────────────────────────────────────────────────
+fastapi>=0.109.2
+uvicorn[standard]>=0.27.1
+python-multipart>=0.0.9
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+tenacity>=8.2.3                 # Retry logic helpers
+python-dateutil>=2.8.2          # Date parsing
+schedule>=1.2.1                 # Local scheduler (alternative to n8n)
+click>=8.1.7                    # CLI helpers
+rich>=13.7.0                    # Pretty console output / logging
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=7.4.4
+pytest-asyncio>=0.23.5
+pytest-cov>=4.1.0
+responses>=0.25.0               # HTTP mock library
