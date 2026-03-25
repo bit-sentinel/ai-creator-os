@@ -1,88 +1,106 @@
 """
 Image Generator Service
 ────────────────────────
-Wraps OpenAI DALL-E 3 for carousel slide image generation.
-Supports fallback to Canva API if configured.
+Primary:  Stability AI (Stable Diffusion 3) — REST API, no extra SDK needed.
+Fallback: Canva API (if CANVA_API_TOKEN is set).
+
+Claude handles all text generation; this service handles visuals only.
 """
+import base64
 import logging
-import os
 import uuid
 from pathlib import Path
 from typing import Optional
 
 import requests
-from openai import OpenAI
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Local cache directory for downloaded images
 IMAGE_CACHE_DIR = Path("./image_cache")
+
+# Stability AI endpoint
+STABILITY_BASE = "https://api.stability.ai/v2beta/stable-image/generate"
 
 
 class ImageGenerator:
-    """Generates images via DALL-E 3 (primary) or Canva API (fallback)."""
+    """Generates carousel slide images via Stability AI."""
 
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         IMAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        if not settings.STABILITY_API_KEY:
+            logger.warning(
+                "STABILITY_API_KEY not set — image generation will fail. "
+                "Get a free key at https://platform.stability.ai"
+            )
 
     def generate(self, prompt: str, save_local: bool = True) -> str:
         """
         Generate an image from a prompt.
-        Returns a URL to the generated image.
-        If save_local=True, also downloads to ./image_cache/.
+        Returns a publicly accessible URL (or local file path if no CDN).
+        Tries Stability AI → Canva in order.
         """
-        try:
-            return self._generate_dalle(prompt, save_local)
-        except Exception as e:
-            logger.warning("DALL-E failed: %s. Trying fallback.", e)
-            if settings.CANVA_API_TOKEN:
-                return self._generate_canva(prompt)
-            raise
+        if settings.STABILITY_API_KEY:
+            try:
+                return self._generate_stability(prompt, save_local)
+            except Exception as e:
+                logger.warning("Stability AI failed: %s. Trying Canva fallback.", e)
 
-    # ─── DALL-E 3 ─────────────────────────────────────────────────────────────
+        if settings.CANVA_API_TOKEN:
+            return self._generate_canva(prompt)
 
-    def _generate_dalle(self, prompt: str, save_local: bool) -> str:
-        # Truncate prompt to DALL-E 4000 char limit
-        prompt = prompt[:3900]
-
-        response = self.client.images.generate(
-            model=settings.DALLE_MODEL,
-            prompt=prompt,
-            size=settings.DALLE_IMAGE_SIZE,
-            quality=settings.DALLE_IMAGE_QUALITY,
-            n=1,
+        raise RuntimeError(
+            "No image generation provider configured. "
+            "Set STABILITY_API_KEY in .env — get a free key at https://platform.stability.ai"
         )
-        image_url = response.data[0].url
-        logger.info("DALL-E image generated: %s", image_url[:80])
 
-        if save_local:
-            self._download_and_cache(image_url)
+    # ─── Stability AI ─────────────────────────────────────────────────────────
 
-        return image_url
+    def _generate_stability(self, prompt: str, save_local: bool) -> str:
+        """
+        Call Stability AI stable-image/generate endpoint.
+        Returns the URL to a locally saved PNG (Stability returns raw bytes).
+        """
+        model = settings.STABILITY_MODEL
+        endpoint = f"{STABILITY_BASE}/sd3" if model.startswith("sd3") else f"{STABILITY_BASE}/core"
 
-    def _download_and_cache(self, url: str) -> Optional[Path]:
-        """Download DALL-E URL (expires in 1hr) to local cache."""
+        headers = {
+            "authorization": f"Bearer {settings.STABILITY_API_KEY}",
+            "accept": "image/*",
+        }
+        data = {
+            "prompt": prompt[:10000],
+            "output_format": "png",
+            "model": model,
+        }
+
+        # Parse size (e.g. "1024x1024" → width=1024, height=1024)
         try:
-            resp = requests.get(url, timeout=30)
-            resp.raise_for_status()
-            filename = IMAGE_CACHE_DIR / f"{uuid.uuid4()}.png"
-            filename.write_bytes(resp.content)
-            logger.debug("Image cached at: %s", filename)
-            return filename
-        except Exception as e:
-            logger.warning("Failed to cache image: %s", e)
-            return None
+            w, h = settings.STABILITY_IMAGE_SIZE.split("x")
+            data["width"] = int(w)
+            data["height"] = int(h)
+        except Exception:
+            pass  # let API use defaults
+
+        resp = requests.post(endpoint, headers=headers, files={"none": ""}, data=data, timeout=60)
+
+        if resp.status_code != 200:
+            error_msg = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text[:200]
+            raise RuntimeError(f"Stability AI error {resp.status_code}: {error_msg}")
+
+        # Save raw PNG bytes locally
+        filename = IMAGE_CACHE_DIR / f"{uuid.uuid4()}.png"
+        filename.write_bytes(resp.content)
+        logger.info("Stability AI image saved: %s", filename)
+
+        # Return as file:// path — swap for a CDN URL in production
+        return filename.as_uri()
 
     # ─── Canva (fallback) ─────────────────────────────────────────────────────
 
     def _generate_canva(self, prompt: str) -> str:
-        """
-        Basic Canva API integration.
-        Requires Canva API access (currently in beta).
-        """
+        """Canva Magic Media API fallback."""
         if not settings.CANVA_API_TOKEN:
             raise ValueError("Canva API token not configured")
 
@@ -90,13 +108,8 @@ class ImageGenerator:
             "Authorization": f"Bearer {settings.CANVA_API_TOKEN}",
             "Content-Type": "application/json",
         }
-        # Canva Magic Media API endpoint (adjust when officially released)
         url = "https://api.canva.com/rest/v1/ai/generate-image"
-        payload = {
-            "prompt": prompt[:1000],
-            "style": "photo-realistic",
-        }
+        payload = {"prompt": prompt[:1000], "style": "photo-realistic"}
         resp = requests.post(url, json=payload, headers=headers, timeout=60)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("image_url", "")
+        return resp.json().get("image_url", "")

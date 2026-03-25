@@ -6,7 +6,7 @@ import os
 import pytest
 
 # Patch all external credentials before any module import
-os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake-key")
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-fake-key")
 os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
 os.environ.setdefault("SUPABASE_KEY", "fake-supabase-key")
 os.environ.setdefault("APIFY_API_TOKEN", "apify_fake_token")

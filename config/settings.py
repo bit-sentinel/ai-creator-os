@@ -5,16 +5,15 @@ All settings are loaded from environment variables / .env file.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional
-import os
 
 
 class Settings(BaseSettings):
-    # ── OpenAI ──────────────────────────────────────────────────────────────
-    OPENAI_API_KEY: str = Field(..., description="OpenAI API key")
-    OPENAI_MODEL: str = Field("gpt-4o", description="Default LLM model")
-    OPENAI_TEMPERATURE: float = Field(0.7, description="LLM temperature")
+    # ── Anthropic / Claude ────────────────────────────────────────────────────
+    ANTHROPIC_API_KEY: str = Field(..., description="Anthropic API key")
+    ANTHROPIC_MODEL: str = Field("claude-sonnet-4-6", description="Claude model ID")
+    ANTHROPIC_TEMPERATURE: float = Field(0.7, description="LLM temperature (0–1)")
 
-    # ── Supabase ─────────────────────────────────────────────────────────────
+    # ── Supabase ──────────────────────────────────────────────────────────────
     SUPABASE_URL: str = Field(..., description="Supabase project URL")
     SUPABASE_KEY: str = Field(..., description="Supabase anon/service key")
 
@@ -34,13 +33,14 @@ class Settings(BaseSettings):
     INSTAGRAM_APP_SECRET: str = Field(..., description="Meta App Secret")
     INSTAGRAM_API_VERSION: str = Field("v19.0", description="Graph API version")
 
-    # ── DALL-E / Image Generation ─────────────────────────────────────────────
-    DALLE_MODEL: str = Field("dall-e-3", description="DALL-E model version")
-    DALLE_IMAGE_SIZE: str = Field("1024x1024", description="Image dimensions")
-    DALLE_IMAGE_QUALITY: str = Field("hd", description="Image quality: standard | hd")
+    # ── Image Generation ──────────────────────────────────────────────────────
+    # Primary: Stability AI (stable-image/generate) — no extra SDK, just HTTP
+    STABILITY_API_KEY: Optional[str] = Field(None, description="Stability AI API key")
+    STABILITY_MODEL: str = Field("sd3-large", description="Stability AI model: sd3-large | sd3-medium | core")
+    STABILITY_IMAGE_SIZE: str = Field("1024x1024", description="WxH for generated images")
 
-    # ── Canva API (optional alternative to DALL-E) ────────────────────────────
-    CANVA_API_TOKEN: Optional[str] = Field(None, description="Canva API token")
+    # Optional fallback: Canva API
+    CANVA_API_TOKEN: Optional[str] = Field(None, description="Canva API token (optional fallback)")
 
     # ── App Behaviour ─────────────────────────────────────────────────────────
     LOG_LEVEL: str = Field("INFO", description="Logging level")
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # ── API Server ────────────────────────────────────────────────────────────
     API_HOST: str = Field("0.0.0.0", description="FastAPI host")
     API_PORT: int = Field(8000, description="FastAPI port")
-    API_SECRET_KEY: str = Field("change-me-in-production", description="JWT secret")
+    API_SECRET_KEY: str = Field("change-me-in-production", description="API secret key")
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

@@ -67,7 +67,7 @@ def test_environment():
         die("Cannot load settings — fill in .env first")
 
     required = [
-        ("OPENAI_API_KEY",      settings.OPENAI_API_KEY),
+        ("ANTHROPIC_API_KEY",   settings.ANTHROPIC_API_KEY),
         ("SUPABASE_URL",        settings.SUPABASE_URL),
         ("SUPABASE_KEY",        settings.SUPABASE_KEY),
         ("APIFY_API_TOKEN",     settings.APIFY_API_TOKEN),
@@ -75,8 +75,9 @@ def test_environment():
         ("INSTAGRAM_APP_SECRET",settings.INSTAGRAM_APP_SECRET),
         ("API_SECRET_KEY",      settings.API_SECRET_KEY),
     ]
+    placeholders = ("change-me-in-production", "sk-ant-api03-...", "sk-...", "")
     for name, val in required:
-        ok = bool(val) and val not in ("change-me-in-production", "sk-...", "")
+        ok = bool(val) and val not in placeholders
         check(f"{name} is set", ok, "⚠ placeholder value" if not ok else "")
 
     return settings
@@ -123,41 +124,47 @@ def test_supabase(settings):
         check("Active accounts in DB", False, str(e))
 
 
-def test_openai(settings):
-    section("3. OpenAI API (GPT-4o + DALL-E)")
+def test_claude(settings):
+    section("3. Anthropic API (Claude)")
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        resp = client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
+        import anthropic
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        msg = client.messages.create(
+            model=settings.ANTHROPIC_MODEL,
+            max_tokens=10,
             messages=[{"role": "user", "content": "Reply with exactly: OK"}],
-            max_tokens=5,
         )
-        reply = resp.choices[0].message.content.strip()
-        check("GPT-4o chat completion", "OK" in reply.upper(), f'response: "{reply}"')
+        reply = msg.content[0].text.strip()
+        check(f"Claude ({settings.ANTHROPIC_MODEL}) chat", "OK" in reply.upper(),
+              f'response: "{reply}"')
     except Exception as e:
-        check("GPT-4o chat completion", False, str(e))
+        check(f"Claude ({settings.ANTHROPIC_MODEL}) chat", False, str(e))
 
 
-def test_dalle(settings, skip: bool):
+def test_stability(settings, skip: bool):
     if skip:
-        check("DALL-E 3 image generation", True, skipped=True)
+        check("Stability AI image generation", True, skipped=True)
+        return
+
+    if not settings.STABILITY_API_KEY:
+        check("Stability AI image generation", False,
+              "STABILITY_API_KEY not set — get free key at platform.stability.ai")
         return
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        resp = client.images.generate(
-            model=settings.DALLE_MODEL,
-            prompt="A simple blue circle on a white background",
-            size="1024x1024",
-            quality="standard",
-            n=1,
+        import requests as req
+        resp = req.post(
+            "https://api.stability.ai/v2beta/stable-image/generate/core",
+            headers={"authorization": f"Bearer {settings.STABILITY_API_KEY}", "accept": "image/*"},
+            files={"none": ""},
+            data={"prompt": "A simple blue circle on white background", "output_format": "png"},
+            timeout=60,
         )
-        url = resp.data[0].url
-        check("DALL-E 3 image generation", bool(url), f"URL: {url[:60]}…")
+        ok = resp.status_code == 200 and len(resp.content) > 1000
+        check("Stability AI image generation", ok,
+              f"{len(resp.content):,} bytes" if ok else f"HTTP {resp.status_code}: {resp.text[:100]}")
     except Exception as e:
-        check("DALL-E 3 image generation", False, str(e))
+        check("Stability AI image generation", False, str(e))
 
 
 def test_apify(settings, skip: bool):
@@ -355,7 +362,7 @@ def print_summary():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Creator OS setup tester")
     parser.add_argument("--skip-images", action="store_true",
-                        help="Skip DALL-E image generation test (saves API cost)")
+                        help="Skip Stability AI image generation test (saves API credits)")
     parser.add_argument("--skip-scrape", action="store_true",
                         help="Skip Apify actor validation")
     parser.add_argument("--unit-only",   action="store_true",
@@ -370,8 +377,8 @@ if __name__ == "__main__":
     else:
         settings = test_environment()
         test_supabase(settings)
-        test_openai(settings)
-        test_dalle(settings, skip=args.skip_images)
+        test_claude(settings)
+        test_stability(settings, skip=args.skip_images)
         test_apify(settings, skip=args.skip_scrape)
         test_agents(settings, skip_images=args.skip_images)
         test_api_server()

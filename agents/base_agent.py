@@ -4,9 +4,9 @@ Base agent class — shared scaffolding for every AI agent in the system.
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain.schema import HumanMessage, SystemMessage
 
 from config.settings import settings
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class BaseAgent(ABC):
     """
     Base class providing:
-    - A configured LangChain LLM client
+    - A configured LangChain ChatAnthropic client (Claude)
     - Retry logic with exponential back-off
     - Structured logging
     - Abstract `run()` method all agents must implement
@@ -29,10 +29,10 @@ class BaseAgent(ABC):
     def __init__(self, agent_name: str, temperature: Optional[float] = None):
         self.name = agent_name
         self.logger = logging.getLogger(f"agent.{agent_name}")
-        self.llm = ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            temperature=temperature if temperature is not None else settings.OPENAI_TEMPERATURE,
-            api_key=settings.OPENAI_API_KEY,
+        self.llm = ChatAnthropic(
+            model=settings.ANTHROPIC_MODEL,
+            temperature=temperature if temperature is not None else settings.ANTHROPIC_TEMPERATURE,
+            api_key=settings.ANTHROPIC_API_KEY,
         )
 
     @abstractmethod
@@ -43,7 +43,7 @@ class BaseAgent(ABC):
     # ─── LLM helpers ─────────────────────────────────────────────────────────
 
     def _chat(self, system_prompt: str, user_prompt: str) -> str:
-        """Call the LLM with retry logic."""
+        """Call Claude with retry logic."""
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
@@ -55,13 +55,13 @@ class BaseAgent(ABC):
             except Exception as exc:
                 delay = self.RETRY_BASE_DELAY ** attempt
                 self.logger.warning(
-                    "LLM call failed (attempt %d/%d): %s. Retrying in %.1fs",
+                    "Claude call failed (attempt %d/%d): %s. Retrying in %.1fs",
                     attempt, self.MAX_RETRIES, exc, delay,
                 )
                 if attempt == self.MAX_RETRIES:
                     raise
                 time.sleep(delay)
-        raise RuntimeError("LLM call exhausted retries")
+        raise RuntimeError("Claude call exhausted retries")
 
     # ─── Utility ─────────────────────────────────────────────────────────────
 
