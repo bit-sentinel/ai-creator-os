@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
 from pydantic import BaseModel
 
 from config.settings import settings
+from services import supabase_client as db
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,6 @@ async def health():
 @app.get("/accounts")
 async def list_accounts(x_api_key: str = Header(...)):
     _verify_key(x_api_key)
-    from services import supabase_client as db
     accounts = db.get_active_accounts()
     return {
         "accounts": [
@@ -125,7 +125,6 @@ async def list_accounts(x_api_key: str = Header(...)):
 @app.get("/accounts/{username}/strategy")
 async def get_strategy(username: str, x_api_key: str = Header(...)):
     _verify_key(x_api_key)
-    from services import supabase_client as db
     accounts = db.get_active_accounts()
     account = next((a for a in accounts if a["username"] == username), None)
     if not account:

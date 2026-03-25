@@ -14,7 +14,7 @@ langchain-openai>=0.0.8
 
 # ── Database ──────────────────────────────────────────────────────────────────
 supabase>=2.3.4
-psycopg2-binary>=2.9.9          # For direct PostgreSQL if needed
+psycopg2-binary>=2.9.9; sys_platform != "darwin"   # Linux/VPS only (not needed locally)
 
 # ── Web / HTTP ────────────────────────────────────────────────────────────────
 requests>=2.31.0

@@ -125,12 +125,15 @@ class TrendAgent(BaseAgent):
         # Hydrate with source metadata
         trend_records = []
         for item in scored_items:
-            idx = summaries.index(next(
-                (s for s in summaries if s.get("title","")[:50] in item.get("topic","") or
-                 item.get("topic","") in s.get("title","")[:200]),
-                {"id": 0}
-            )) if summaries else 0
-            source_post = posts[min(idx, len(posts)-1)] if posts else {}
+            # Find the best-matching source post by title overlap; default to post 0
+            matched = next(
+                (s for s in summaries
+                 if s.get("title", "")[:50] in item.get("topic", "")
+                 or item.get("topic", "") in s.get("title", "")[:200]),
+                None,
+            )
+            idx = matched["id"] if matched else 0
+            source_post = posts[min(idx, len(posts) - 1)] if posts else {}
 
             trend_records.append({
                 "platform": source_post.get("source", "unknown"),

@@ -2,7 +2,7 @@
 Centralized configuration for AI Creator OS.
 All settings are loaded from environment variables / .env file.
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional
 import os
@@ -56,9 +56,7 @@ class Settings(BaseSettings):
     API_PORT: int = Field(8000, description="FastAPI port")
     API_SECRET_KEY: str = Field("change-me-in-production", description="JWT secret")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
 # Singleton
