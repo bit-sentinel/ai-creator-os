@@ -95,7 +95,7 @@ class ImageGenerator:
         logger.info("Stability AI image saved: %s", filename)
 
         # Return as file:// path — swap for a CDN URL in production
-        return filename.as_uri()
+        return filename.resolve().as_uri()
 
     # ─── Canva (fallback) ─────────────────────────────────────────────────────
 

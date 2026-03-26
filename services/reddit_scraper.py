@@ -69,7 +69,7 @@ class RedditScraper:
     # ─── Apify API ────────────────────────────────────────────────────────────
 
     def _start_run(self, subreddits: List[str], limit: int) -> Optional[str]:
-        url = f"{APIFY_BASE_URL}/acts/{self.actor_id}/runs"
+        url = f"{APIFY_BASE_URL}/acts/{self.actor_id.replace('/', '~')}/runs"
         payload = {
             "startUrls": [
                 {"url": f"https://www.reddit.com/{sr}/top/?t=week"}

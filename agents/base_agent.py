@@ -1,6 +1,7 @@
 """
 Base agent class — shared scaffolding for every AI agent in the system.
 """
+import json
 import logging
 import time
 from abc import ABC, abstractmethod
@@ -62,6 +63,23 @@ class BaseAgent(ABC):
                     raise
                 time.sleep(delay)
         raise RuntimeError("Claude call exhausted retries")
+
+    def _chat_json(self, system_prompt: str, user_prompt: str) -> Any:
+        """
+        Call Claude and parse the response as JSON.
+        Handles markdown code fences (```json ... ```) that Claude sometimes adds.
+        """
+        raw = self._chat(system_prompt, user_prompt)
+        # Strip markdown fences if present
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            parts = cleaned.split("```")
+            # parts[1] is the content between first pair of fences
+            cleaned = parts[1]
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.strip()
+        return json.loads(cleaned)
 
     # ─── Utility ─────────────────────────────────────────────────────────────
 

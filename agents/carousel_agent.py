@@ -154,9 +154,8 @@ class CarouselAgent(BaseAgent):
 
         # LLM-generated topic-specific hashtags
         user_prompt = f"Topic: {topic}\nNiche: {niche}"
-        raw = self._chat(HASHTAG_SYSTEM_PROMPT, user_prompt)
         try:
-            llm_tags = json.loads(raw)
+            llm_tags = self._chat_json(HASHTAG_SYSTEM_PROMPT, user_prompt)
             if not isinstance(llm_tags, list):
                 raise ValueError("Expected array")
         except Exception as e:

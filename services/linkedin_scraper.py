@@ -48,7 +48,7 @@ class LinkedInScraper:
     # ─── Apify API calls ─────────────────────────────────────────────────────
 
     def _start_run(self, keywords: List[str], limit: int) -> Optional[str]:
-        url = f"{APIFY_BASE_URL}/acts/{self.actor_id}/runs"
+        url = f"{APIFY_BASE_URL}/acts/{self.actor_id.replace('/', '~')}/runs"
         payload = {
             "searchTerms": keywords,
             "maxResults": limit,

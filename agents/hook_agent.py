@@ -85,14 +85,13 @@ class HookAgent(BaseAgent):
 
     def _generate_hooks(self, topic: str, niche: str) -> List[Dict]:
         user_prompt = f"Topic: {topic}\nNiche: {niche}"
-        raw = self._chat(GENERATION_SYSTEM_PROMPT, user_prompt)
         try:
-            hooks = json.loads(raw)
+            hooks = self._chat_json(GENERATION_SYSTEM_PROMPT, user_prompt)
             if not isinstance(hooks, list):
                 raise ValueError("Expected JSON array")
             return hooks
         except Exception as e:
-            self.logger.error("Hook generation parse error: %s\nRaw: %s", e, raw[:300])
+            self.logger.error("Hook generation parse error: %s", e)
             # Fallback: return a single generic hook
             return [{"type": "NUMBER_LIST", "hook": f"The truth about {topic} nobody tells you", "power_score": 70}]
 
@@ -109,9 +108,8 @@ class HookAgent(BaseAgent):
         hooks_json = json.dumps(hooks, indent=2)
         user_prompt = f"Hooks:\n{hooks_json}{memory_context}"
 
-        raw = self._chat(SELECTION_SYSTEM_PROMPT, user_prompt)
         try:
-            return json.loads(raw)
+            return self._chat_json(SELECTION_SYSTEM_PROMPT, user_prompt)
         except Exception:
             # Fallback: pick highest power_score
             best = max(hooks, key=lambda h: h.get("power_score", 0))

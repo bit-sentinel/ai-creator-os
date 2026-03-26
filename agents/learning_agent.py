@@ -128,11 +128,10 @@ class LearningAgent(BaseAgent):
             f"{json.dumps(summaries, indent=2)}"
         )
 
-        raw = self._chat(ANALYSIS_SYSTEM_PROMPT, user_prompt)
         try:
-            analysis = json.loads(raw)
+            analysis = self._chat_json(ANALYSIS_SYSTEM_PROMPT, user_prompt)
         except Exception as e:
-            self.logger.error("Learning analysis parse error: %s\nRaw: %s", e, raw[:400])
+            self.logger.error("Learning analysis parse error: %s", e)
             analysis = self._manual_analysis(posts)
 
         return analysis

@@ -112,8 +112,7 @@ class TrendAgent(BaseAgent):
         )
 
         try:
-            raw = self._chat(SCORE_SYSTEM_PROMPT, user_prompt)
-            scored_items = json.loads(raw)
+            scored_items = self._chat_json(SCORE_SYSTEM_PROMPT, user_prompt)
         except (json.JSONDecodeError, Exception) as e:
             self.logger.error("LLM scoring failed: %s", e)
             # Fallback: assign score 50 to all

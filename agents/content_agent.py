@@ -110,7 +110,14 @@ class ContentAgent(BaseAgent):
 
     def _parse_response(self, raw: str, topic: str, hook: str) -> Dict:
         try:
-            data = json.loads(raw)
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                parts = cleaned.split("```")
+                cleaned = parts[1]
+                if cleaned.startswith("json"):
+                    cleaned = cleaned[4:]
+                cleaned = cleaned.strip()
+            data = json.loads(cleaned)
             if "slides" not in data:
                 raise ValueError("Missing 'slides' key")
             return data

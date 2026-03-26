@@ -41,7 +41,7 @@ def get_account(account_id: str) -> Optional[Dict]:
 
 
 def upsert_account(data: Dict) -> Dict:
-    res = get_db().table("accounts").upsert(data).execute()
+    res = get_db().table("accounts").upsert(data, on_conflict="username").execute()
     return res.data[0]
 
 
@@ -167,10 +167,10 @@ def get_strategy_memory(account_id: str) -> Optional[Dict]:
         .table("strategy_memory")
         .select("*")
         .eq("account_id", account_id)
-        .single()
+        .limit(1)
         .execute()
     )
-    return res.data
+    return res.data[0] if res.data else None
 
 
 def upsert_strategy_memory(account_id: str, memory: Dict) -> Dict:
@@ -196,7 +196,8 @@ def get_templates(niche: Optional[str] = None) -> List[Dict]:
 
 def increment_template_usage(template_id: str, new_score: float) -> None:
     """Update running average engagement score for a template."""
-    tpl = get_db().table("content_templates").select("usage_count,avg_engagement_score").eq("template_id", template_id).single().execute().data
+    rows = get_db().table("content_templates").select("usage_count,avg_engagement_score").eq("template_id", template_id).limit(1).execute().data
+    tpl = rows[0] if rows else None
     if tpl:
         count = tpl["usage_count"] + 1
         avg = (tpl["avg_engagement_score"] * tpl["usage_count"] + new_score) / count
