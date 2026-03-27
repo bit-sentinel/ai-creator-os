@@ -1,16 +1,18 @@
 """
 AI Creator OS — Main Orchestrator
 ───────────────────────────────────
-Runs the five automation pipelines:
+Runs automation pipelines:
   1. trend_discovery     — Scan LinkedIn/Reddit for viral topics
   2. content_creation    — Generate carousel content
   3. publishing          — Publish scheduled posts
   4. analytics           — Collect engagement metrics
   5. learning            — Update strategy memory
+  6. ai_news             — AI News Storytelling Engine (HN + Reddit → cinematic posts)
 
 Usage:
   python main.py --pipeline trend_discovery
   python main.py --pipeline content_creation --account ai_growth_hacks
+  python main.py --pipeline ai_news --account FutureOfWork
   python main.py --pipeline all          # Run all in sequence
   python main.py --serve                 # Start FastAPI server (for n8n)
 """
@@ -30,6 +32,7 @@ from agents.carousel_agent import CarouselAgent
 from agents.design_agent import DesignAgent
 from agents.analytics_agent import AnalyticsAgent
 from agents.learning_agent import LearningAgent
+from ai_news_pipeline import run_ai_news_pipeline
 from services.instagram_publisher import InstagramPublisher
 from services import supabase_client as db
 
@@ -217,14 +220,20 @@ def run_publishing(username: Optional[str] = None) -> None:
                     logger.warning("Post %s has no images — skipping", post["post_id"])
                     continue
 
-                db.update_post(post["post_id"], {"status": "publishing"})
-
-                post_id = publisher.publish_carousel(
-                    ig_user_id=account["instagram_user_id"],
-                    image_urls=image_urls,
-                    caption=post["caption"],
-                    hashtags=post.get("hashtags", []),
-                )
+                if len(image_urls) == 1:
+                    post_id = publisher.publish_single_image(
+                        ig_user_id=account["instagram_user_id"],
+                        image_url=image_urls[0],
+                        caption=post["caption"],
+                        hashtags=post.get("hashtags", []),
+                    )
+                else:
+                    post_id = publisher.publish_carousel(
+                        ig_user_id=account["instagram_user_id"],
+                        image_urls=image_urls,
+                        caption=post["caption"],
+                        hashtags=post.get("hashtags", []),
+                    )
 
                 db.update_post(post["post_id"], {
                     "status": "published",
@@ -337,11 +346,15 @@ def main():
     parser = argparse.ArgumentParser(description="AI Creator OS")
     parser.add_argument(
         "--pipeline",
-        choices=["trend_discovery", "content_creation", "publishing", "analytics", "learning", "all"],
+        choices=[
+            "trend_discovery", "content_creation", "publishing",
+            "analytics", "learning", "ai_news", "all",
+        ],
         help="Which pipeline to run",
     )
     parser.add_argument("--account", type=str, help="Limit to a specific account username")
     parser.add_argument("--serve", action="store_true", help="Start the FastAPI server")
+    parser.add_argument("--skip-images", action="store_true", help="Skip image generation (E2E test mode)")
     args = parser.parse_args()
 
     if args.serve:
@@ -357,14 +370,23 @@ def main():
         "publishing": run_publishing,
         "analytics": run_analytics,
         "learning": run_learning,
+        "ai_news": run_ai_news_pipeline,
     }
+
+    skip_images = getattr(args, "skip_images", False)
 
     if args.pipeline == "all":
         for name, fn in pipeline_map.items():
             logger.info("Running pipeline: %s", name)
-            fn(username=args.account)
+            if name == "ai_news":
+                fn(username=args.account, skip_images=skip_images)
+            else:
+                fn(username=args.account)
     elif args.pipeline:
-        pipeline_map[args.pipeline](username=args.account)
+        if args.pipeline == "ai_news":
+            pipeline_map[args.pipeline](username=args.account, skip_images=skip_images)
+        else:
+            pipeline_map[args.pipeline](username=args.account)
     else:
         parser.print_help()
 

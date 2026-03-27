@@ -4,7 +4,8 @@
 # in the database after initial setup. Put placeholders here for onboarding.
 
 accounts:
-  - username: "ai_growth_hacks"
+  - username: "1min_ai_lessons"
+    instagram_user_id: "26478207988482384"
     platform: instagram
     niche: "AI & Productivity"
     posting_frequency: 5          # posts per day
@@ -47,6 +48,21 @@ accounts:
       - ["#MindsetShift", "#PersonalDevelopment", "#GrowthMindset", "#SelfImprovement", "#Discipline"]
       - ["#Motivation", "#SuccessMindset", "#MentalStrength", "#LifeLessons", "#WinnerMindset"]
     tone: "inspirational"
+    status: active
+
+  - username: "cognitionlabs.ai"
+    instagram_user_id: "26790101373986993"
+    platform: instagram
+    niche: "AI & Productivity"
+    posting_frequency: 3
+    preferred_post_times:         # UTC 24-h format
+      - "08:00"
+      - "13:00"
+      - "19:00"
+    hashtag_sets:
+      - ["#futureofwork", "#artificialintelligence", "#ainews", "#AI", "#automation"]
+      - ["#airevolution", "#machinelearning", "#techfuture", "#aijobs", "#digitaltransformation"]
+    tone: "storytelling"          # dramatic AI news storytelling style
     status: active
 
 # Global defaults applied to all accounts unless overridden

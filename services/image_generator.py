@@ -19,6 +19,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 IMAGE_CACHE_DIR = Path("./image_cache")
+SUPABASE_BUCKET = "post-images"
 
 # Stability AI endpoint
 STABILITY_BASE = "https://api.stability.ai/v2beta/stable-image/generate"
@@ -90,12 +91,56 @@ class ImageGenerator:
             raise RuntimeError(f"Stability AI error {resp.status_code}: {error_msg}")
 
         # Save raw PNG bytes locally
-        filename = IMAGE_CACHE_DIR / f"{uuid.uuid4()}.png"
+        image_id = str(uuid.uuid4())
+        filename = IMAGE_CACHE_DIR / f"{image_id}.png"
         filename.write_bytes(resp.content)
         logger.info("Stability AI image saved: %s", filename)
 
-        # Return as file:// path — swap for a CDN URL in production
+        # Upload to Supabase Storage for a public HTTPS URL
+        public_url = self._upload_to_supabase(filename, f"{image_id}.png")
+        if public_url:
+            return public_url
+
+        # Fallback: return local file URI (only works for local testing)
+        logger.warning("Supabase upload failed — returning local file path (not usable by Instagram)")
         return filename.resolve().as_uri()
+
+    # ─── Supabase Storage ─────────────────────────────────────────────────────
+
+    def _upload_to_supabase(self, local_path: Path, remote_name: str) -> Optional[str]:
+        """Upload a local image file to Supabase Storage and return its public URL."""
+        storage_key = settings.SUPABASE_SERVICE_KEY or settings.SUPABASE_KEY
+        if not storage_key:
+            logger.warning("No Supabase key available for Storage upload")
+            return None
+        try:
+            upload_url = (
+                f"{settings.SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{remote_name}"
+            )
+            headers = {
+                "Authorization": f"Bearer {storage_key}",
+                "Content-Type": "image/png",
+                "x-upsert": "true",
+            }
+            with open(local_path, "rb") as f:
+                resp = requests.post(upload_url, headers=headers, data=f, timeout=30)
+
+            if resp.status_code in (200, 201):
+                public_url = (
+                    f"{settings.SUPABASE_URL}/storage/v1/object/public"
+                    f"/{SUPABASE_BUCKET}/{remote_name}"
+                )
+                logger.info("Image uploaded to Supabase Storage: %s", public_url)
+                return public_url
+
+            logger.warning(
+                "Supabase Storage upload failed (%s): %s",
+                resp.status_code, resp.text[:200],
+            )
+            return None
+        except Exception as e:
+            logger.warning("Supabase Storage upload error: %s", e)
+            return None
 
     # ─── Canva (fallback) ─────────────────────────────────────────────────────
 

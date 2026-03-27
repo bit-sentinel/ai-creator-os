@@ -17,7 +17,7 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-GRAPH_BASE = f"https://graph.facebook.com/{settings.INSTAGRAM_API_VERSION}"
+GRAPH_BASE = f"https://graph.instagram.com/{settings.INSTAGRAM_API_VERSION}"
 
 
 class InstagramPublisher:
@@ -32,6 +32,64 @@ class InstagramPublisher:
     # ═══════════════════════════════════════════════════════════════════════
     # PUBLISHING
     # ═══════════════════════════════════════════════════════════════════════
+
+    def publish_reel(
+        self,
+        ig_user_id: str,
+        video_url: str,
+        caption: str,
+        hashtags: List[str],
+    ) -> str:
+        """
+        Publish a vertical MP4 video as an Instagram Reel.
+        The video must be publicly accessible via HTTPS.
+
+        Returns the Instagram media ID of the published Reel.
+        """
+        full_caption = self._build_caption(caption, hashtags)
+        url = f"{GRAPH_BASE}/{ig_user_id}/media"
+        params = {
+            "media_type": "REELS",
+            "video_url": video_url,
+            "caption": full_caption[:2200],
+            "access_token": self.token,
+        }
+        resp = requests.post(url, params=params, timeout=30)
+        self._raise_for_graph_error(resp)
+        container_id = resp.json()["id"]
+        logger.info("Created Reel container: %s", container_id)
+
+        post_id = self._publish_container(ig_user_id, container_id)
+        logger.info("Published Reel: post_id=%s", post_id)
+        return post_id
+
+    def publish_single_image(
+        self,
+        ig_user_id: str,
+        image_url: str,
+        caption: str,
+        hashtags: List[str],
+    ) -> str:
+        """
+        Publish a single photo post (not a carousel).
+        Used when there is exactly 1 image.
+        Returns the Instagram media ID of the published post.
+        """
+        full_caption = self._build_caption(caption, hashtags)
+        url = f"{GRAPH_BASE}/{ig_user_id}/media"
+        params = {
+            "image_url": image_url,
+            "caption": full_caption[:2200],
+            "access_token": self.token,
+        }
+        resp = requests.post(url, params=params, timeout=30)
+        self._raise_for_graph_error(resp)
+        container_id = resp.json()["id"]
+        logger.info("Created single-image container: %s", container_id)
+
+        post_id = self._publish_container(ig_user_id, container_id)
+        logger.info("Published single image: post_id=%s", post_id)
+        return post_id
 
     def publish_carousel(
         self,

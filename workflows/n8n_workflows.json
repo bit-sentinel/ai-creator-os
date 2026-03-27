@@ -787,6 +787,194 @@
   },
 
   {
+    "name": "AI Creator OS — 6. AI News Pipeline",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 4
+              }
+            ]
+          }
+        },
+        "id": "a1b2c3d4-0007-0007-0007-000000000001",
+        "name": "Every 4 Hours",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [240, 300]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "hour-min",
+                "leftValue": "={{ new Date().getUTCHours() }}",
+                "rightValue": 5,
+                "operator": {
+                  "type": "number",
+                  "operation": "gt"
+                }
+              },
+              {
+                "id": "hour-max",
+                "leftValue": "={{ new Date().getUTCHours() }}",
+                "rightValue": 23,
+                "operator": {
+                  "type": "number",
+                  "operation": "lt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "a1b2c3d4-0007-0007-0007-000000000002",
+        "name": "Active Hours Only (6am–11pm UTC)",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [480, 300]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.CREATOR_OS_API_URL }}/pipelines/ai-news",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-api-key",
+                "value": "={{ $env.CREATOR_OS_API_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"account\": null\n}",
+          "options": {
+            "timeout": 600000
+          }
+        },
+        "id": "a1b2c3d4-0007-0007-0007-000000000003",
+        "name": "Trigger AI News Pipeline",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [720, 180]
+      },
+      {
+        "parameters": {},
+        "id": "a1b2c3d4-0007-0007-0007-000000000004",
+        "name": "Skip — Outside Hours",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [720, 440]
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "field1",
+                "name": "pipeline",
+                "value": "ai_news",
+                "type": "string"
+              },
+              {
+                "id": "field2",
+                "name": "status",
+                "value": "={{ $json.status }}",
+                "type": "string"
+              },
+              {
+                "id": "field3",
+                "name": "queued_at",
+                "value": "={{ $json.started_at }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "a1b2c3d4-0007-0007-0007-000000000005",
+        "name": "Log Result",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [960, 180]
+      }
+    ],
+    "connections": {
+      "Every 4 Hours": {
+        "main": [
+          [
+            {
+              "node": "Active Hours Only (6am–11pm UTC)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Active Hours Only (6am–11pm UTC)": {
+        "main": [
+          [
+            {
+              "node": "Trigger AI News Pipeline",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Skip — Outside Hours",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Trigger AI News Pipeline": {
+        "main": [
+          [
+            {
+              "node": "Log Result",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1",
+      "errorWorkflow": "AI Creator OS — Error Handler",
+      "saveManualExecutions": true,
+      "callerPolicy": "workflowsFromSameOwner"
+    },
+    "versionId": "a1b2c3d4-0007-0007-0007-000000000099",
+    "meta": {
+      "instanceId": "ai-creator-os"
+    },
+    "tags": [
+      { "name": "ai-creator-os" },
+      { "name": "ai-news" }
+    ]
+  },
+
+  {
     "name": "AI Creator OS — Error Handler",
     "nodes": [
       {

@@ -103,6 +103,18 @@ async def trigger_learning(
     return _response("learning", req.account)
 
 
+@app.post("/pipelines/ai-news", response_model=PipelineResponse)
+async def trigger_ai_news(
+    req: PipelineRequest,
+    background_tasks: BackgroundTasks,
+    x_api_key: str = Header(...),
+):
+    _verify_key(x_api_key)
+    from ai_news_pipeline import run_ai_news_pipeline
+    background_tasks.add_task(run_ai_news_pipeline, req.account)
+    return _response("ai_news", req.account)
+
+
 # ─── Health / Status ─────────────────────────────────────────────────────────
 
 @app.get("/health")

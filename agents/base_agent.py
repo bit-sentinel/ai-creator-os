@@ -3,6 +3,7 @@ Base agent class — shared scaffolding for every AI agent in the system.
 """
 import json
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Optional
@@ -67,19 +68,53 @@ class BaseAgent(ABC):
     def _chat_json(self, system_prompt: str, user_prompt: str) -> Any:
         """
         Call Claude and parse the response as JSON.
-        Handles markdown code fences (```json ... ```) that Claude sometimes adds.
+        Tries multiple extraction strategies before raising.
         """
         raw = self._chat(system_prompt, user_prompt)
-        # Strip markdown fences if present
         cleaned = raw.strip()
-        if cleaned.startswith("```"):
+
+        # Strategy 1: strip markdown fences
+        if "```" in cleaned:
             parts = cleaned.split("```")
-            # parts[1] is the content between first pair of fences
-            cleaned = parts[1]
-            if cleaned.startswith("json"):
-                cleaned = cleaned[4:]
-            cleaned = cleaned.strip()
-        return json.loads(cleaned)
+            for part in parts:
+                candidate = part.lstrip("json").strip()
+                try:
+                    return json.loads(candidate)
+                except json.JSONDecodeError:
+                    continue
+
+        # Strategy 2: direct parse
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+
+        # Strategy 3: scan every '[' position for a valid JSON array
+        for i, ch in enumerate(cleaned):
+            if ch == "[":
+                # try from here to each ']' scanning backwards
+                end = cleaned.rfind("]")
+                while end > i:
+                    try:
+                        return json.loads(cleaned[i : end + 1])
+                    except json.JSONDecodeError:
+                        end = cleaned.rfind("]", 0, end)
+
+        # Strategy 4: scan every '{' position for a valid JSON object
+        for i, ch in enumerate(cleaned):
+            if ch == "{":
+                end = cleaned.rfind("}")
+                while end > i:
+                    try:
+                        return json.loads(cleaned[i : end + 1])
+                    except json.JSONDecodeError:
+                        end = cleaned.rfind("}", 0, end)
+
+        # Nothing worked — re-raise with context
+        raise json.JSONDecodeError(
+            f"Could not parse JSON from Claude response (len={len(raw)})",
+            cleaned, 0
+        )
 
     # ─── Utility ─────────────────────────────────────────────────────────────
 

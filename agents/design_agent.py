@@ -12,35 +12,52 @@ from agents.base_agent import BaseAgent
 from services.image_generator import ImageGenerator
 
 PROMPT_ENHANCEMENT_SYSTEM = """
-You are a visual art director for Instagram carousel posts.
+You are an expert AI image prompt engineer specialized in generating viral Instagram visuals.
 
-Given a slide's content and role, write an optimized DALL-E 3 image generation prompt.
+Your task is to generate a HIGH-IMPACT cinematic image prompt for Stability AI.
 
-Style guidelines:
-- Modern, clean, minimalist design
-- Bold typography areas (leave space for text overlay)
-- Consistent colour palette: dark navy or pure white backgrounds
-- Professional yet vibrant
-- NO faces unless specifically requested
-- High contrast for mobile readability
+STYLE REQUIREMENTS:
+* hyper-realistic
+* cinematic lighting
+* ultra detailed
+* high contrast
+* dramatic composition
+* high quality
+* sharp focus
+* glowing elements
+* dark background with subject focus
 
-For each slide, tailor the visual to its role:
-  hook       → bold, attention-grabbing composition, dramatic lighting
-  core_idea  → clean infographic style, simple icons or diagram
-  explanation→ step-by-step visual, numbered elements
-  insight    → "aha moment" visual metaphor (light bulb, key unlocking door, etc.)
-  cta        → warm, inviting, "follow" or "save" implied
+COMPOSITION RULES:
+* One strong central subject
+* Add symbolic elements related to the topic
+* Use dramatic lighting (red glow, neon, fire, shadows)
+* Make it feel like a movie poster
 
-Return ONLY the enhanced DALL-E prompt string. Nothing else.
+VISUAL STYLE REFERENCES:
+* sci-fi movie poster
+* cyberpunk aesthetic
+* futuristic tech realism
+* dark dramatic storytelling
+
+For each slide role, emphasise:
+  hook       → explosive, jaw-dropping opener — maximum drama, neon glow, cinematic wide shot
+  core_idea  → bold central symbol with glowing aura, dark void background, striking focal point
+  explanation→ layered tech elements, holographic diagrams, depth of field, futuristic details
+  insight    → "revelation" moment — a figure or object in a burst of light, dramatic shadows
+  cta        → powerful call-to-arms composition, upward motion, hopeful yet intense atmosphere
+
+OUTPUT:
+Return ONLY the image prompt string. Nothing else.
+
+FORMAT:
+"[main subject], [key symbolic elements], cinematic lighting, ultra realistic, 8k, dramatic shadows, high contrast, glowing highlights, cyberpunk style, sharp focus, depth of field, professional photography, dark background"
 """
 
-# Brand colour palette applied to all prompts
+# Cinematic style suffix appended to every prompt
 BRAND_STYLE = (
-    "Professional Instagram carousel slide. "
-    "Minimalist design. Dark navy blue (#0A0F2C) or pure white background. "
-    "Bold sans-serif typography space. "
-    "Vibrant accent colour (#4F46E5 indigo). "
-    "4K quality, ultra-sharp, no text in image, suitable for business content."
+    "cinematic lighting, ultra realistic, 8k, dramatic shadows, high contrast, "
+    "glowing highlights, cyberpunk style, sharp focus, depth of field, "
+    "professional photography, dark background, no text in image"
 )
 
 
@@ -48,7 +65,7 @@ class DesignAgent(BaseAgent):
     """Generates images for each carousel slide."""
 
     def __init__(self):
-        super().__init__("DesignAgent", temperature=0.5)
+        super().__init__("DesignAgent", temperature=0.7)
         self.image_generator = ImageGenerator()
 
     def run(

@@ -18,6 +18,7 @@ psycopg2-binary>=2.9.9; sys_platform != "darwin"   # Linux/VPS only (not needed 
 
 # ── Web / HTTP ────────────────────────────────────────────────────────────────
 requests>=2.31.0
+Pillow>=10.0.0
 httpx>=0.26.0                   # Used by supabase client
 
 # ── API Server ────────────────────────────────────────────────────────────────
