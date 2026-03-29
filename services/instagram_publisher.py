@@ -110,12 +110,13 @@ class InstagramPublisher:
         if not image_urls:
             raise ValueError("No image URLs provided for carousel")
 
-        # Step 1 — child containers
+        # Step 1 — child containers (pause between each to avoid IG rate limits)
         child_ids = []
         for url in image_urls:
             child_id = self._create_image_container(ig_user_id, url, is_carousel_item=True)
             child_ids.append(child_id)
             logger.info("Created child container: %s", child_id)
+            time.sleep(4)   # give IG time to ingest each image before the next
 
         # Step 2 — carousel container
         full_caption = self._build_caption(caption, hashtags)
